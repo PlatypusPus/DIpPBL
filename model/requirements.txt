@@ -1,0 +1,30 @@
+# Verified working on Windows · Python 3.10.x or 3.11.x
+# All wheels are prebuilt — no source builds.
+#
+# ── Install in TWO steps ────────────────────────────────────────
+# 1. Upgrade pip (Python 3.10.6 ships pip 22, which is slow + buggy):
+#      python -m pip install --upgrade pip
+#
+# 2. Install the core stack:
+#      pip install --prefer-binary -r model\requirements.txt
+#
+# 3. Install tensorflowjs WITHOUT its deps (it pulls flax/orbax/
+#    tensorstore which conflict with TF 2.15's ml-dtypes pin and
+#    pull uvloop, which has no Windows wheel). Our converter path
+#    only needs TF + tf-keras + the helpers below, which are
+#    already installed in step 2:
+#      pip install --no-deps tensorflowjs==4.17.0
+
+tensorflow==2.15.0
+tf-keras==2.15.1
+
+# Helpers tensorflowjs imports at runtime (kept here so step 3's
+# --no-deps install still has what it needs)
+packaging>=20.9,<24
+six>=1.16.0
+importlib_resources>=5.9.0
+
+numpy==1.26.4
+scikit-learn==1.4.2
+pillow==10.4.0
+matplotlib==3.8.4

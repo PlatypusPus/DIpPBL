@@ -1,0 +1,38 @@
+# ── Dataset (download separately from Kaggle, see README) ──────
+samples/
+
+# ── Python virtual environments ────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Python build / cache ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Trained model artefacts (regenerate with: python model/train.py) ──
+model/saved/
+model/tfjs/
+
+# ── Editor / IDE ───────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS metadata ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs / misc ────────────────────────────────────────────────
+*.log
+.cache/
+.tmp/
+node_modules/

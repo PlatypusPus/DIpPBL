@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIRA — Medical Image Reasoning Atelier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ╭──────────────────────────────────────────────────────╮ -->
+    <!-- │  HEADER                                              │ -->
+    <!-- ╰──────────────────────────────────────────────────────╯ -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
+            <circle cx="16" cy="16" r="9"  fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.7"/>
+            <circle cx="16" cy="16" r="3"  fill="currentColor"/>
+            <path d="M16 2 L16 30 M2 16 L30 16" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">MIRA</span>
+          <span class="brand-tag">Medical Image Reasoning Atelier</span>
+        </div>
+      </div>
+
+      <nav class="header-meta">
+        <div class="meta-pill">
+          <span class="meta-dot"></span>
+          <span class="meta-label">Pipeline</span>
+          <span class="meta-value">Retinal Fundus · v1.0</span>
+        </div>
+        <div class="meta-pill">
+          <span class="meta-label">Subject</span>
+          <span class="meta-value">Digital Image Processing</span>
+        </div>
+      </nav>
+
+      <div class="header-actions">
+        <label class="btn btn-ghost" for="file-input">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3v12m0-12 4 4m-4-4-4 4M5 21h14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Upload Image</span>
+          <input id="file-input" type="file" accept="image/*" hidden />
+        </label>
+        <button class="btn btn-primary" id="run-btn" disabled>
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M8 5v14l11-7L8 5Z" fill="currentColor"/></svg>
+          <span id="run-btn-label">Run Pipeline</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ╭──────────────────────────────────────────────────────╮ -->
+    <!-- │  MAIN GRID                                           │ -->
+    <!-- ╰──────────────────────────────────────────────────────╯ -->
+    <main class="main">
+
+      <!-- ─── Left rail: stage navigation ─── -->
+      <aside class="rail" aria-label="Processing stages">
+        <div class="rail-head">
+          <span class="rail-eyebrow">Pipeline Stages</span>
+          <span class="rail-count" id="stage-progress">0 / 8</span>
+        </div>
+        <ol class="rail-list" id="rail-list">
+          <!-- populated by app.js -->
+        </ol>
+        <div class="rail-foot">
+          <div class="rail-status" id="opencv-status">
+            <span class="status-dot status-dot--load"></span>
+            <span>Loading OpenCV…</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ─── Center: viewer + pipeline + gallery ─── -->
+      <section class="canvas-area">
+
+        <!-- Split-panel viewer -->
+        <div class="viewer">
+          <div class="viewer-pane viewer-pane--source">
+            <div class="pane-header">
+              <span class="pane-eyebrow">01 · Source</span>
+              <span class="pane-title">Original Acquisition</span>
+              <div class="pane-meta" id="source-meta">
+                <span>—</span>
+              </div>
+            </div>
+            <div class="pane-body">
+              <canvas id="source-canvas" class="pane-canvas"></canvas>
+              <div class="pane-empty" id="source-empty">
+                <svg viewBox="0 0 64 64" width="48" height="48"><circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.5"/><circle cx="32" cy="32" r="18" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.4"/><circle cx="32" cy="32" r="6"  fill="currentColor" opacity="0.7"/></svg>
+                <p class="empty-title">Awaiting acquisition</p>
+                <p class="empty-sub">Upload a retinal fundus image to begin the diagnostic pipeline.</p>
+              </div>
+            </div>
+            <div class="pane-grid" aria-hidden="true"></div>
+          </div>
+
+          <div class="viewer-divider" aria-hidden="true">
+            <span class="divider-pin"></span>
+          </div>
+
+          <!-- Floating synced zoom controls -->
+          <div class="viewer-zoom" role="toolbar" aria-label="Zoom controls">
+            <button type="button" class="zoom-btn" data-zoom="out" title="Zoom out (−)" aria-label="Zoom out">
+              <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+            <span class="zoom-level" id="zoom-level">100%</span>
+            <button type="button" class="zoom-btn" data-zoom="in" title="Zoom in (+)" aria-label="Zoom in">
+              <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+            <span class="zoom-sep" aria-hidden="true"></span>
+            <button type="button" class="zoom-btn" data-zoom="reset" title="Reset (0 / double-click)" aria-label="Reset zoom">
+              <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8a5 5 0 1 0 5-5M3 3v3h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <div class="viewer-pane viewer-pane--output">
+            <div class="pane-header">
+              <span class="pane-eyebrow">02 · Output</span>
+              <span class="pane-title" id="output-title">Awaiting Inference</span>
+              <div class="pane-meta">
+                <span class="overlay-toggle">
+                  <input type="checkbox" id="toggle-vessels" checked />
+                  <label for="toggle-vessels">Vessels</label>
+                </span>
+                <span class="overlay-toggle">
+                  <input type="checkbox" id="toggle-lesions" checked />
+                  <label for="toggle-lesions">Lesions</label>
+                </span>
+                <span class="overlay-toggle">
+                  <input type="checkbox" id="toggle-optic" checked />
+                  <label for="toggle-optic">Optic Disc</label>
+                </span>
+              </div>
+            </div>
+            <div class="pane-body">
+              <canvas id="output-canvas" class="pane-canvas"></canvas>
+              <div class="pane-empty" id="output-empty">
+                <svg viewBox="0 0 64 64" width="48" height="48"><path d="M8 32 L24 32 L28 20 L36 44 L40 32 L56 32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/></svg>
+                <p class="empty-title">Output panel</p>
+                <p class="empty-sub">Processed segmentation and lesion overlays will appear here.</p>
+              </div>
+            </div>
+            <div class="pane-grid" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <!-- AI Diagnostic Inference (TF.js) -->
+        <section class="inference" id="inference-panel">
+          <div class="inference-head">
+            <div class="inference-head-titles">
+              <span class="rail-eyebrow">AI Diagnostic Inference</span>
+              <h2 class="inference-title">MobileNetV2 · Transfer-Learned Classifier</h2>
+            </div>
+            <div class="inference-status" id="inference-status">
+              <span class="status-dot status-dot--load"></span>
+              <span>Loading model…</span>
+            </div>
+          </div>
+
+          <div class="inference-body">
+            <div class="inference-primary">
+              <div class="primary-eyebrow">Top Prediction</div>
+              <div class="primary-name" id="primary-name">—</div>
+              <div class="primary-class" id="primary-class">awaiting inference</div>
+              <div class="primary-conf-row">
+                <div class="conf-bar"><div class="conf-fill" id="primary-bar"></div></div>
+                <span class="primary-conf" id="primary-conf">—</span>
+              </div>
+              <div class="primary-meta">
+                <span><span class="meta-key">Inference</span><span id="primary-time">—</span></span>
+                <span><span class="meta-key">Classes</span><span id="primary-nclasses">—</span></span>
+                <span><span class="meta-key">Backbone</span><span>MobileNetV2</span></span>
+              </div>
+            </div>
+
+            <div class="inference-list-wrap">
+              <div class="inference-list-head">
+                <span class="card-eyebrow">Top-5 Differential</span>
+              </div>
+              <div class="inference-list" id="inference-list">
+                <div class="inference-empty">Top-5 differential diagnoses will appear here once a fundus image is uploaded.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- The Learning Bar / Pipeline Configuration -->
+        <div class="learning-bar" id="learning-bar">
+          <!-- populated by app.js -->
+        </div>
+
+        <!-- Stage detail panel -->
+        <div class="stage-detail" id="stage-detail">
+          <div class="detail-head">
+            <div class="detail-head-titles">
+              <span class="detail-eyebrow" id="detail-eyebrow">Stage Detail</span>
+              <h2 class="detail-title" id="detail-title">Select a stage to inspect</h2>
+            </div>
+            <div class="detail-tags" id="detail-tags"></div>
+          </div>
+
+          <div class="detail-methods" id="detail-methods"></div>
+
+          <div class="detail-grid">
+            <!-- Stage visualization -->
+            <div class="detail-card detail-card--viz">
+              <div class="card-eyebrow">Stage Output</div>
+              <div class="stage-canvas-wrap">
+                <canvas id="stage-canvas" class="stage-canvas"></canvas>
+                <div class="stage-canvas-empty" id="stage-canvas-empty">No data yet</div>
+              </div>
+            </div>
+
+            <!-- Histogram -->
+            <div class="detail-card detail-card--hist">
+              <div class="card-eyebrow">Intensity Histogram</div>
+              <canvas id="hist-canvas" class="hist-canvas"></canvas>
+              <div class="hist-stats" id="hist-stats">
+                <div><span class="stat-label">Mean</span><span class="stat-value" id="stat-mean">—</span></div>
+                <div><span class="stat-label">Std</span><span class="stat-value" id="stat-std">—</span></div>
+                <div><span class="stat-label">Min/Max</span><span class="stat-value" id="stat-range">—</span></div>
+                <div><span class="stat-label">Entropy</span><span class="stat-value" id="stat-entropy">—</span></div>
+              </div>
+            </div>
+
+            <!-- Rationale + theory -->
+            <div class="detail-card detail-card--rationale">
+              <div class="card-eyebrow">Clinical Rationale</div>
+              <p class="rationale-text" id="rationale-text">
+                Pick a method pill above to learn how the operation transforms the image and why it matters in retinal diagnostics.
+              </p>
+              <div class="rationale-formula" id="rationale-formula"></div>
+              <div class="rationale-params" id="rationale-params"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gallery of all intermediate steps -->
+        <div class="gallery">
+          <div class="gallery-head">
+            <span class="rail-eyebrow">All Pipeline Outputs</span>
+            <span class="gallery-hint">Scroll horizontally · click any frame to open in detail</span>
+          </div>
+          <div class="gallery-strip" id="gallery-strip">
+            <!-- populated by app.js -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ╭──────────────────────────────────────────────────────╮ -->
+    <!-- │  TOAST / STATUS                                      │ -->
+    <!-- ╰──────────────────────────────────────────────────────╯ -->
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <!-- OpenCV.js loaded async -->
+  <script>
+    var Module = {
+      onRuntimeInitialized: function () {
+        window.dispatchEvent(new CustomEvent('opencv-ready'));
+      }
+    };
+  </script>
+  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+  <!-- TensorFlow.js for the diagnostic classifier -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+
+  <script type="module" src="js/pipeline.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -11,6 +11,39 @@ import { SyncedViewer } from './viewer.js';
 
 // Stages that appear in the bottom Learning Bar (per design blueprint)
 const LEARNING_BAR_IDS = ['channel', 'contrast', 'segmentation', 'lesion'];
+const PARAM_LABELS = {
+  ksize: 'Kernel Size',
+  kernel: 'Kernel Diameter',
+  sigma: 'Sigma',
+  sigmaColor: 'Sigma Color',
+  sigmaSpace: 'Sigma Space',
+  clipLimit: 'Clip Limit',
+  tileGrid: 'Tile Grid',
+  gamma: 'Gamma',
+  center: 'Spectrum Center',
+  scale: 'Magnitude Scale',
+  amount: 'Amount',
+  alpha: 'Alpha',
+  A: 'Boost Factor A',
+  shape: 'Kernel Shape',
+  lo: 'Low Threshold',
+  hi: 'High Threshold',
+  block: 'Block Size',
+  C: 'Bias C',
+  t: 'Threshold',
+  connectivity: 'Connectivity',
+  minArea: 'Minimum Area',
+  struct: 'Structuring Element',
+  maxIter: 'Max Iterations',
+  percentile: 'Percentile',
+  dp: 'Hough dp',
+  minDist: 'Min Center Distance',
+  minR: 'Minimum Radius',
+  maxR: 'Maximum Radius',
+  vesselColor: 'Vessel Color',
+  lesionColor: 'Lesion Color',
+  odColor: 'Optic Disc Color',
+};
 
 // ─── DOM refs ──────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -366,6 +399,7 @@ function setActiveStage(stageId) {
 function renderActiveStage() {
   const stage = pipeline.getStage(activeStageId);
   if (!stage) return;
+  const method = pipeline.getMethod(stage.id);
 
   ui.detailEyebrow.textContent = stage.eyebrow;
   ui.detailTitle.textContent = stage.detailTitle;
@@ -407,19 +441,16 @@ function renderActiveStage() {
   // Rationale
   if (stage.fixed && stage.description) {
     ui.rationaleText.textContent = stage.description;
+    ui.rationaleFormula.textContent = method?.formula || '';
+    renderParamEditor(stage, method);
+  } else if (method) {
+    ui.rationaleText.textContent = method.rationale || '';
+    ui.rationaleFormula.textContent = method.formula || '';
+    renderParamEditor(stage, method);
+  } else {
+    ui.rationaleText.textContent = 'Pick a method pill to see details.';
     ui.rationaleFormula.textContent = '';
     ui.rationaleParams.innerHTML = '';
-  } else {
-    const m = pipeline.getMethod(stage.id);
-    if (m) {
-      ui.rationaleText.textContent = m.rationale || '';
-      ui.rationaleFormula.textContent = m.formula || '';
-      ui.rationaleParams.innerHTML = renderParamChips(m.params);
-    } else {
-      ui.rationaleText.textContent = 'Pick a method pill to see details.';
-      ui.rationaleFormula.textContent = '';
-      ui.rationaleParams.innerHTML = '';
-    }
   }
 }
 
@@ -444,17 +475,99 @@ function renderDetailMethods(stage) {
   }
 }
 
-function renderParamChips(params) {
-  if (!params) return '';
-  const entries = Object.entries(params);
-  if (!entries.length) return '';
-  return entries
-    .map(([k, v]) => `<span class="param-chip">${k}<strong>${formatVal(v)}</strong></span>`)
-    .join('');
+function renderParamEditor(stage, method) {
+  ui.rationaleParams.innerHTML = '';
+  if (!method) return;
+
+  const defaults = pipeline.getDefaultParams(stage.id, method.id);
+  const entries = Object.entries(defaults);
+  if (!entries.length) return;
+
+  const values = pipeline.getMethodParams(stage.id, method.id);
+  const schema = pipeline.getParamSchema(stage.id, method.id);
+
+  const form = document.createElement('form');
+  form.className = 'param-editor';
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    onParamSave(stage.id, method.id, form);
+  });
+
+  const head = document.createElement('div');
+  head.className = 'param-editor-head';
+
+  const title = document.createElement('span');
+  title.className = 'card-eyebrow param-editor-title';
+  title.textContent = 'Parameters';
+  head.appendChild(title);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'submit';
+  saveBtn.className = 'btn btn-ghost detail-param-save';
+  saveBtn.textContent = 'Save';
+  head.appendChild(saveBtn);
+
+  const grid = document.createElement('div');
+  grid.className = 'param-editor-grid';
+
+  entries.forEach(([key, defaultValue]) => {
+    const meta = schema[key] || {};
+    const field = document.createElement('label');
+    field.className = 'param-field';
+
+    const fieldHead = document.createElement('div');
+    fieldHead.className = 'param-field-head';
+
+    const name = document.createElement('span');
+    name.className = 'param-name';
+    name.textContent = PARAM_LABELS[key] || humanizeParamKey(key);
+    fieldHead.appendChild(name);
+
+    const defaultTag = document.createElement('span');
+    defaultTag.className = 'param-default';
+    defaultTag.textContent = `Default ${formatVal(defaultValue)}`;
+    fieldHead.appendChild(defaultTag);
+
+    const help = document.createElement('p');
+    help.className = 'param-help';
+    help.textContent = meta.description || `Controls ${name.textContent.toLowerCase()} for this method.`;
+
+    const input = document.createElement('input');
+    input.className = 'param-input';
+    input.name = key;
+    input.type = meta.input === 'color' ? 'color' : meta.input === 'number' ? 'number' : 'text';
+    input.value = formatInputValue(values[key]);
+    if (input.type === 'number') {
+      if (meta.min != null) input.min = String(meta.min);
+      if (meta.max != null) input.max = String(meta.max);
+      if (meta.step != null) input.step = String(meta.step);
+    } else if (input.type === 'text') {
+      input.spellcheck = false;
+      input.autocapitalize = 'off';
+    }
+
+    field.appendChild(fieldHead);
+    field.appendChild(help);
+    field.appendChild(input);
+    grid.appendChild(field);
+  });
+
+  form.appendChild(head);
+  form.appendChild(grid);
+  ui.rationaleParams.appendChild(form);
 }
+
 function formatVal(v) {
   if (typeof v === 'number') return Number.isInteger(v) ? v : v.toFixed(2);
   return String(v);
+}
+function formatInputValue(v) {
+  return typeof v === 'number' ? String(v) : String(v ?? '');
+}
+function humanizeParamKey(key) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/^./, (m) => m.toUpperCase());
 }
 
 // ─── Histogram drawing ─────────────────────────────────────────
@@ -621,31 +734,11 @@ async function runPipeline() {
     toast('Upload a source image first', 'error');
     return;
   }
-  ui.runBtn.disabled = true;
-  ui.runBtnLabel.textContent = 'Processing…';
-  // micro-yield so UI updates before WASM heavy lifting
-  await new Promise((r) => requestAnimationFrame(r));
-
-  const t0 = performance.now();
-  try {
-    pipeline.runAll();
-    paintOutput();
-    refreshGallery();
-    refreshRailHighlights();
-    refreshLearningBar();
-    renderActiveStage();
-    if (classifier.ready) runInference();
-    hasRun = true;
-    const ms = Math.round(performance.now() - t0);
-    toast(`Pipeline complete · ${ms} ms`, 'ok');
-    ui.runBtnLabel.textContent = 'Re-run Pipeline';
-  } catch (err) {
-    console.error(err);
-    toast('Pipeline failed: ' + err.message, 'error');
-    ui.runBtnLabel.textContent = 'Run Pipeline';
-  } finally {
-    ui.runBtn.disabled = false;
-  }
+  await processPipelineUpdate({
+    run: () => pipeline.runAll(),
+    successMessage: (ms) => `Pipeline complete · ${ms} ms`,
+    errorPrefix: 'Pipeline failed: ',
+  });
 }
 
 function onMethodPick(stageId, methodId) {
@@ -655,22 +748,71 @@ function onMethodPick(stageId, methodId) {
   if (activeStageId === stageId) renderActiveStage();
   refreshRailHighlights();
 
-  if (hasRun) {
-    // Re-run from this stage onward
-    try {
-      pipeline.runFrom(stageId);
-      pipeline.runComposite();
-      paintOutput();
-      refreshGallery();
-      renderActiveStage();
-      ui.runBtnLabel.textContent = 'Re-run Pipeline';
-      toast(`Updated ${pipeline.getStage(stageId).name}`, 'ok');
-    } catch (err) {
-      console.error(err);
-      toast('Re-run failed: ' + err.message, 'error');
-    }
-  } else if (pipeline.hasSource()) {
-    ui.runBtnLabel.textContent = 'Run Pipeline';
+  if (pipeline.hasSource()) {
+    void rerunStageChange(stageId, `Updated ${pipeline.getStage(stageId).name}`);
+  }
+}
+
+function onParamSave(stageId, methodId, form) {
+  const values = Object.fromEntries(new FormData(form).entries());
+
+  try {
+    pipeline.setMethodParams(stageId, values, methodId);
+  } catch (err) {
+    console.error(err);
+    toast('Could not save parameters: ' + err.message, 'error');
+    return;
+  }
+
+  if (activeStageId === stageId) renderActiveStage();
+
+  if (pipeline.hasSource()) {
+    void rerunStageChange(stageId, `Updated ${pipeline.getStage(stageId).name} parameters`);
+  } else {
+    toast(`Saved ${pipeline.getStage(stageId).name} parameters`, 'ok');
+  }
+}
+
+async function rerunStageChange(stageId, successMessage) {
+  await processPipelineUpdate({
+    run: () => {
+      if (hasRun) {
+        pipeline.runFrom(stageId);
+        if (stageId !== 'composite') pipeline.runComposite();
+      } else {
+        pipeline.runAll();
+      }
+    },
+    successMessage,
+    errorPrefix: 'Re-run failed: ',
+  });
+}
+
+async function processPipelineUpdate({ run, successMessage, errorPrefix }) {
+  const hadRunBefore = hasRun;
+  ui.runBtn.disabled = true;
+  ui.runBtnLabel.textContent = 'Processing…';
+  await new Promise((r) => requestAnimationFrame(r));
+
+  const t0 = performance.now();
+  try {
+    run();
+    paintOutput();
+    refreshGallery();
+    refreshRailHighlights();
+    refreshLearningBar();
+    renderActiveStage();
+    if (classifier.ready) runInference();
+    hasRun = true;
+    const ms = Math.round(performance.now() - t0);
+    toast(typeof successMessage === 'function' ? successMessage(ms) : successMessage, 'ok');
+    ui.runBtnLabel.textContent = 'Re-run Pipeline';
+  } catch (err) {
+    console.error(err);
+    toast(errorPrefix + err.message, 'error');
+    ui.runBtnLabel.textContent = hadRunBefore ? 'Re-run Pipeline' : 'Run Pipeline';
+  } finally {
+    ui.runBtn.disabled = false;
   }
 }
 

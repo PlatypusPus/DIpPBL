@@ -159,9 +159,18 @@
               <span class="rail-eyebrow">AI Diagnostic Inference</span>
               <h2 class="inference-title">MobileNetV2 · Transfer-Learned Classifier</h2>
             </div>
-            <div class="inference-status" id="inference-status">
-              <span class="status-dot status-dot--load"></span>
-              <span>Loading model…</span>
+            <div class="inference-head-actions">
+              <div class="inference-status" id="inference-status">
+                <span class="status-dot status-dot--load"></span>
+                <span>Loading model…</span>
+              </div>
+              <button class="btn btn-ghost reading-btn-inline" id="reading-btn" disabled title="Ask Gemini for an image-grounded explanation">
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M12 3l1.6 4.6L18 9.2l-4.4 1.6L12 15.4l-1.6-4.6L6 9.2l4.4-1.6L12 3Z" fill="currentColor"/>
+                  <path d="M19 14l.8 2.4L22 17.2l-2.2.8L19 20.4l-.8-2.4L16 17.2l2.2-.8L19 14Z" fill="currentColor" opacity="0.7"/>
+                </svg>
+                <span id="reading-btn-label">Generate Reading</span>
+              </button>
             </div>
           </div>
 
@@ -174,6 +183,10 @@
                 <div class="conf-bar"><div class="conf-fill" id="primary-bar"></div></div>
                 <span class="primary-conf" id="primary-conf">—</span>
               </div>
+
+              <!-- Clinical Reading fills the empty space in this card -->
+              <div class="primary-reading" id="reading-body"></div>
+
               <div class="primary-meta">
                 <span><span class="meta-key">Inference</span><span id="primary-time">—</span></span>
                 <span><span class="meta-key">Classes</span><span id="primary-nclasses">—</span></span>

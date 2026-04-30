@@ -771,6 +771,197 @@ body {
 }
 
 /* =============================================================
+   CLINICAL READING (rendered inside the inference panel)
+   ============================================================= */
+.inference-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.reading-btn-inline {
+  padding: 7px 12px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+.reading-btn-inline:disabled {
+  background: var(--surface);
+  color: var(--text-faint);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+.primary-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.primary-reading:empty {
+  display: none;
+}
+
+/* Stop the right column (top-5) from stretching when the primary card grows
+   with reading content — leaves the right column compact and the left column
+   uses the empty space. */
+.inference-list-wrap { align-self: start; }
+
+.reading-loading,
+.reading-error {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-body);
+  background: var(--surface);
+  border: 0.5px solid var(--teal-line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.reading-loading::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--teal-line);
+  border-top-color: var(--teal);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.reading-error {
+  border-color: rgba(230, 138, 138, 0.4);
+  color: var(--rose);
+  background: rgba(230, 138, 138, 0.06);
+  flex-direction: column;
+  gap: 4px;
+}
+.reading-error code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--bg-deeper);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-body);
+}
+
+.reading-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reading-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.reading-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+.reading-text--muted {
+  color: var(--text-muted);
+}
+
+.finding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  background: var(--surface);
+  border: 0.5px solid var(--line);
+  border-left: 2px solid var(--text-faint);
+  border-radius: var(--radius-sm);
+}
+.finding.is-primary { border-left-color: var(--emerald); }
+.finding.is-differential { border-left-color: var(--sapphire); }
+.finding.is-contradicts { border-left-color: var(--rose); }
+.finding-feature {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+}
+.finding-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.finding-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  font-size: 9px;
+}
+.finding.is-primary .finding-tag { color: var(--emerald); }
+.finding.is-differential .finding-tag { color: var(--sapphire); }
+.finding.is-contradicts .finding-tag { color: var(--rose); }
+
+.conf-pill {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 0.5px solid;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  font-family: var(--font-sans);
+}
+.conf-pill.conf-high {
+  color: var(--emerald);
+  border-color: rgba(88, 224, 164, 0.4);
+  background: rgba(88, 224, 164, 0.08);
+}
+.conf-pill.conf-moderate {
+  color: var(--amber);
+  border-color: rgba(241, 194, 125, 0.4);
+  background: rgba(241, 194, 125, 0.08);
+}
+.conf-pill.conf-low {
+  color: var(--rose);
+  border-color: rgba(230, 138, 138, 0.4);
+  background: rgba(230, 138, 138, 0.08);
+}
+.conf-pill.conf-unknown {
+  color: var(--text-muted);
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.reading-disclaimer {
+  font-size: 9.5px;
+  font-style: italic;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  margin-top: -2px;
+}
+
+@media (max-width: 980px) {
+  .inference-list-wrap { align-self: stretch; }
+  .inference-head-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+/* =============================================================
    THE LEARNING BAR (pipeline configuration)
    ============================================================= */
 .learning-bar {

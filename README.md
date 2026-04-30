@@ -33,6 +33,10 @@ python -m http.server 8000
 # then open http://localhost:8000
 ```
 
+If you also want the **Clinical Reading** panel (Gemini-powered explanation),
+serve the project through the bundled Python proxy instead — see
+[Clinical Reading](#clinical-reading-gemini-explanation) below.
+
 Upload any image, click **Run Pipeline** to walk through the DIP stages, and
 the inference panel will show the top-5 predictions if a model is present.
 
@@ -74,6 +78,45 @@ python model\predict.py samples\1000images\0.0.Normal\some-image.JPG
 
 ---
 
+## Clinical Reading (Gemini explanation)
+
+The **Clinical Reading** panel asks Gemini to read the uploaded fundus image
+plus MIRA's pipeline composite, then returns an image-grounded explanation
+that names the visible features supporting (or contradicting) the top
+prediction. It's a *second opinion* on the image, not a model-attribution
+heatmap — handy for teaching, not a clinical tool.
+
+It runs through a tiny Flask proxy at `server/app.py` so your API key never
+touches the browser.
+
+```powershell
+# 1. Install proxy deps into your venv (Pillow is already there from training)
+pip install -r server\requirements.txt
+
+# 2. Get a Gemini API key (free tier is plenty for a demo)
+#    https://aistudio.google.com/app/apikey
+
+# 3. Configure the key
+copy .env.example .env
+#    then edit .env and set GEMINI_API_KEY=...
+
+# 4. Run the proxy — it serves the static frontend and /api/explain
+python server\app.py
+# then open http://localhost:5174
+```
+
+Flow inside the app: upload an image → **Run Pipeline** → click
+**Generate Reading**. The proxy forwards the source JPEG, the diagnostic
+composite, and the classifier's top-5 to Gemini, and renders the structured
+JSON response (condition · visual findings · pipeline corroboration ·
+confidence). Adjustable via env vars in `.env`:
+
+- `GEMINI_API_KEY` (required)
+- `GEMINI_MODEL` (default `gemini-2.5-flash`)
+- `PORT` (default `5174`)
+
+---
+
 ## Project structure
 
 ```
@@ -84,7 +127,12 @@ mira/
 │   ├── app.js              # UI orchestration
 │   ├── pipeline.js         # 15-stage DIP pipeline (OpenCV.js)
 │   ├── classifier.js       # TensorFlow.js inference
+│   ├── explain.js          # Clinical Reading client (calls /api/explain)
 │   └── viewer.js           # Synced pan/zoom for both panels
+├── server/
+│   ├── app.py              # Flask proxy: serves frontend + /api/explain
+│   └── requirements.txt    # Proxy deps (flask, dotenv, google-generativeai)
+├── .env.example            # Template — copy to .env and add GEMINI_API_KEY
 ├── model/
 │   ├── train.py            # Training pipeline (transfer learning)
 │   ├── predict.py          # CLI single-image inference

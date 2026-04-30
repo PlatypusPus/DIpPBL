@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check js/pipeline.js)",
+      "Bash(node --check js/app.js)",
+      "Bash(node --check js/viewer.js)",
+      "Bash(node --check js/classifier.js)",
+      "Bash(python -m http.server 8765 --bind 127.0.0.1)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -sS -o /tmp/index.html -w \"HTTP=%{http_code}\\\\n\" http://127.0.0.1:8765/index.html)",
+      "Bash(curl -sS -o /tmp/app.js -w \"HTTP_app=%{http_code}\\\\n\" http://127.0.0.1:8765/js/app.js)",
+      "Bash(curl -sS -o /tmp/pipeline.js -w \"HTTP_pipe=%{http_code}\\\\n\" http://127.0.0.1:8765/js/pipeline.js)",
+      "Bash(kill 1304)",
+      "Bash(pkill -f \"http.server 8765\")",
+      "Bash(grep -v -E \"^d.*\\\\s\\(samples|venv|model|js|node_modules|\\\\.git\\)$\")",
+      "Bash(D:/Code/PBL/venv/Scripts/python.exe -c \"import flask, dotenv; print\\('flask', flask.__version__\\); print\\('dotenv ok'\\)\")",
+      "Bash(D:/Code/PBL/venv/Scripts/python.exe -c \"import google.generativeai\")",
+      "Bash(node --check js/explain.js)",
+      "Bash(D:/Code/PBL/venv/Scripts/python.exe *)"
+    ]
+  }
+}

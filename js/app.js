@@ -8,6 +8,7 @@
 import { STAGES, Pipeline } from './pipeline.js';
 import { Classifier, prettyLabel } from './classifier.js';
 import { SyncedViewer } from './viewer.js';
+import { requestReading } from './explain.js';
 
 // Stages that appear in the bottom Learning Bar (per design blueprint)
 const LEARNING_BAR_IDS = ['channel', 'contrast', 'segmentation', 'lesion'];
@@ -90,6 +91,10 @@ const ui = {
   primaryTime: $('primary-time'),
   primaryNclasses: $('primary-nclasses'),
   inferenceList: $('inference-list'),
+  // ─── Clinical Reading (in-line with inference) ───────────────
+  readingBtn: $('reading-btn'),
+  readingBtnLabel: $('reading-btn-label'),
+  readingBody: $('reading-body'),
 };
 
 // ─── State ─────────────────────────────────────────────────────
@@ -100,6 +105,8 @@ let hasRun = false;
 const classifier = new Classifier();
 let classifierLoading = false;
 let viewer = null;
+let lastTopK = null;
+let readingInFlight = false;
 
 // ─── Bootstrap ─────────────────────────────────────────────────
 window.addEventListener('opencv-ready', () => {
@@ -213,6 +220,8 @@ function runInference() {
 
 function renderInference(topK, elapsedMs) {
   if (!topK || !topK.length) return;
+  lastTopK = topK;
+  refreshReadingButton();
   const top = topK[0];
   ui.primaryName.textContent = prettyLabel(top.label);
   ui.primaryClass.textContent = top.label;
@@ -637,6 +646,7 @@ function clearHistogram() {
 function attachEvents() {
   ui.fileInput.addEventListener('change', onFileSelected);
   ui.runBtn.addEventListener('click', () => runPipeline());
+  ui.readingBtn.addEventListener('click', () => generateReading());
 
   ui.toggleVessels.addEventListener('change', () => {
     pipeline.showVessels = ui.toggleVessels.checked;
@@ -689,6 +699,7 @@ async function onFileSelected(e) {
       if (activeStageId === 'acquisition') renderActiveStage();
       refreshRailHighlights();
       refreshGallery();
+      refreshReadingButton();
     }
     // Fire ML inference on upload — independent of the DIP pipeline
     if (classifier.ready) runInference();
@@ -804,6 +815,7 @@ async function processPipelineUpdate({ run, successMessage, errorPrefix }) {
     renderActiveStage();
     if (classifier.ready) runInference();
     hasRun = true;
+    refreshReadingButton();
     const ms = Math.round(performance.now() - t0);
     toast(typeof successMessage === 'function' ? successMessage(ms) : successMessage, 'ok');
     ui.runBtnLabel.textContent = 'Re-run Pipeline';
@@ -814,6 +826,142 @@ async function processPipelineUpdate({ run, successMessage, errorPrefix }) {
   } finally {
     ui.runBtn.disabled = false;
   }
+}
+
+// ─── Clinical Reading (Gemini proxy) ───────────────────────────
+function refreshReadingButton() {
+  if (readingInFlight) return;
+  const ready = !!(pipeline && pipeline.hasSource());
+  ui.readingBtn.disabled = !ready;
+}
+
+async function generateReading() {
+  if (readingInFlight) return;
+  if (!pipeline || !pipeline.hasSource()) {
+    toast('Upload a source image first', 'error');
+    return;
+  }
+
+  readingInFlight = true;
+  ui.readingBtn.disabled = true;
+  ui.readingBtnLabel.textContent = 'Reading…';
+  ui.readingBody.innerHTML =
+    '<div class="reading-loading">Gathering source + composite, calling Gemini…</div>';
+
+  try {
+    const compositeCanvas = pipeline.state.composite ? ui.outputCanvas : null;
+    const payload = await requestReading({
+      sourceCanvas: ui.sourceCanvas,
+      compositeCanvas,
+      topK: lastTopK || [],
+    });
+    renderReading(payload);
+    ui.readingBtnLabel.textContent = 'Regenerate';
+    toast('Clinical reading received', 'ok');
+  } catch (err) {
+    console.error(err);
+    ui.readingBody.innerHTML =
+      `<div class="reading-error"><strong>Reading failed.</strong> ${escapeText(err.message)}<br>Is <code>python server/app.py</code> running and is <code>GEMINI_API_KEY</code> set in <code>.env</code>?</div>`;
+    ui.readingBtnLabel.textContent = 'Try again';
+  } finally {
+    readingInFlight = false;
+    ui.readingBtn.disabled = !(pipeline && pipeline.hasSource());
+  }
+}
+
+function renderReading(payload) {
+  const el = ui.readingBody;
+  el.innerHTML = '';
+
+  const condition = payload.condition || {};
+  const findings = Array.isArray(payload.visualFindings) ? payload.visualFindings : [];
+  const corroboration = payload.pipelineCorroboration || '';
+  const confidence = payload.confidence || {};
+  const disclaimer = payload.disclaimer || '';
+  const level = String(confidence.level || 'unknown').toLowerCase();
+
+  // ─── Section 1: Summary + confidence pill ───
+  if (condition.summary || level !== 'unknown') {
+    const sec = document.createElement('div');
+    sec.className = 'reading-section';
+    sec.innerHTML = `
+      <div class="reading-section-head">
+        <span class="card-eyebrow">Clinical Reading</span>
+        <span class="conf-pill conf-${level}">${escapeText(level)}</span>
+      </div>
+      <p class="reading-text">${escapeText(condition.summary || '')}</p>
+    `;
+    el.appendChild(sec);
+  }
+
+  // ─── Section 2: Visual findings ───
+  if (findings.length) {
+    const sec = document.createElement('div');
+    sec.className = 'reading-section';
+    sec.innerHTML = `<span class="card-eyebrow">Visual Findings</span>`;
+    const list = document.createElement('ul');
+    list.className = 'finding-list';
+    findings.forEach((f) => {
+      const li = document.createElement('li');
+      li.className = 'finding ' + supportClass(f.supports);
+      li.innerHTML = `
+        <div class="finding-feature">${escapeText(f.feature || '—')}</div>
+        <div class="finding-meta">
+          <span class="finding-loc">${escapeText(f.location || '')}</span>
+          <span class="finding-tag">${escapeText(supportLabel(f.supports))}</span>
+        </div>
+      `;
+      list.appendChild(li);
+    });
+    sec.appendChild(list);
+    el.appendChild(sec);
+  }
+
+  // ─── Section 3: Pipeline corroboration ───
+  if (corroboration) {
+    const sec = document.createElement('div');
+    sec.className = 'reading-section';
+    sec.innerHTML = `
+      <span class="card-eyebrow">Pipeline Corroboration</span>
+      <p class="reading-text">${escapeText(corroboration)}</p>
+    `;
+    el.appendChild(sec);
+  }
+
+  // ─── Section 4: Confidence note ───
+  if (confidence.note) {
+    const sec = document.createElement('div');
+    sec.className = 'reading-section';
+    sec.innerHTML = `
+      <span class="card-eyebrow">Confidence Note</span>
+      <p class="reading-text reading-text--muted">${escapeText(confidence.note)}</p>
+    `;
+    el.appendChild(sec);
+  }
+
+  // ─── Disclaimer ───
+  if (disclaimer) {
+    const note = document.createElement('div');
+    note.className = 'reading-disclaimer';
+    note.textContent = disclaimer;
+    el.appendChild(note);
+  }
+}
+
+function supportClass(s) {
+  if (s === 'primary') return 'is-primary';
+  if (s === 'contradicts') return 'is-contradicts';
+  return 'is-differential';
+}
+function supportLabel(s) {
+  if (s === 'primary') return 'supports';
+  if (s === 'contradicts') return 'contradicts';
+  return 'differential';
+}
+function escapeText(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]),
+  );
 }
 
 // ─── Toast ─────────────────────────────────────────────────────

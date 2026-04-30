@@ -7,6 +7,9 @@ venv/
 env/
 .env/
 
+# ── Local secrets ──────────────────────────────────────────────
+.env
+
 # ── Python build / cache ───────────────────────────────────────
 __pycache__/
 *.py[cod]

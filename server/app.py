@@ -156,4 +156,4 @@ if __name__ == "__main__":
     sys.stderr.write(
         f"[mira] serving http://localhost:{PORT}  (model={MODEL_NAME})\n"
     )
-    app.run(host="127.0.0.1", port=PORT, debug=False)
+    app.run(host="0.0.0.0", port=PORT, debug=False)

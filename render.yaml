@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mira
+    runtime: python
+    buildCommand: pip install -r server/requirements.txt
+    startCommand: python server/app.py
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false   # set this in the Render dashboard
